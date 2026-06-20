@@ -1,0 +1,56 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eck-operator
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://helm.elastic.co
+      chart: eck-operator
+      targetRevision: "3.4.0"
+    - repoURL: https://github.com/ngueagho/pi-cluster.git
+      targetRevision: roberto
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: elastic-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-elasticsearch-exporter
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: oci://ghcr.io/prometheus-community/charts
+      chart: prometheus-elasticsearch-exporter
+      targetRevision: "7.2.1"
+      helm:
+        valueFiles:
+          - $values/kubernetes/platform/elastic-stack/prometheus-elasticsearch-exporter/base/values.yaml
+    - repoURL: https://github.com/ngueagho/pi-cluster.git
+      targetRevision: roberto
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: elastic-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

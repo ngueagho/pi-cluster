@@ -18,32 +18,18 @@
   become: false
   delegate_to: localhost
 
-- name: Bootstrap root Application (App of Apps)
+- name: Bootstrap platform AppProject
   kubernetes.core.k8s:
     state: present
-    definition:
-      apiVersion: argoproj.io/v1alpha1
-      kind: Application
-      metadata:
-        name: bootstrap
-        namespace: "{{ argocd_namespace }}"
-        finalizers:
-          - resources-finalizer.argocd.argoproj.io
-      spec:
-        project: default
-        source:
-          repoURL: "{{ argocd_bootstrap_repo_url }}"
-          targetRevision: "{{ argocd_bootstrap_repo_branch }}"
-          path: "{{ argocd_bootstrap_app_path }}"
-        destination:
-          server: https://kubernetes.default.svc
-          namespace: "{{ argocd_namespace }}"
-        syncPolicy:
-          automated:
-            prune: true
-            selfHeal: true
-          syncOptions:
-            - CreateNamespace=true
+    src: "{{ playbook_dir }}/../kubernetes/argocd/project-platform.yaml"
+  become: false
+  delegate_to: localhost
+  when: argocd_bootstrap_repo_url | length > 0
+
+- name: Bootstrap root Application (App of Apps — platform)
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ playbook_dir }}/../kubernetes/argocd/root-app.yaml"
   become: false
   delegate_to: localhost
   when: argocd_bootstrap_repo_url | length > 0

@@ -1,0 +1,116 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: "7.0.0"
+      helm:
+        valueFiles:
+          - $values/kubernetes/platform/loki/app/base/values.yaml
+    - repoURL: https://github.com/ngueagho/pi-cluster.git
+      targetRevision: roberto
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: loki
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: tempo
+      targetRevision: "1.61.3"
+      helm:
+        valueFiles:
+          - $values/kubernetes/platform/tempo/app/base/values.yaml
+    - repoURL: https://github.com/ngueagho/pi-cluster.git
+      targetRevision: roberto
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tempo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fluent-bit
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://fluent.github.io/helm-charts
+      chart: fluent-bit
+      targetRevision: "0.57.7"
+      helm:
+        valueFiles:
+          - $values/kubernetes/platform/fluent/fluent-bit/base/values.yaml
+    - repoURL: https://github.com/ngueagho/pi-cluster.git
+      targetRevision: roberto
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fluent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fluentd
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://fluent.github.io/helm-charts
+      chart: fluentd
+      targetRevision: "0.5.3"
+      helm:
+        valueFiles:
+          - $values/kubernetes/platform/fluent/fluentd/base/values.yaml
+    - repoURL: https://github.com/ngueagho/pi-cluster.git
+      targetRevision: roberto
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fluent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

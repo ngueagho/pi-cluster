@@ -1,0 +1,58 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: oci://ghcr.io/prometheus-community/charts
+      chart: kube-prometheus-stack
+      targetRevision: "86.3.1"
+      helm:
+        skipCrds: true
+        valueFiles:
+          - $values/kubernetes/platform/kube-prometheus-stack/app/base/values.yaml
+    - repoURL: https://github.com/ngueagho/pi-cluster.git
+      targetRevision: roberto
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-prom-stack
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-operator
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: oci://ghcr.io/grafana/helm-charts
+      chart: grafana-operator
+      targetRevision: "5.24.0"
+    - repoURL: https://github.com/ngueagho/pi-cluster.git
+      targetRevision: roberto
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
