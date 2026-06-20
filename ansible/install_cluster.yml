@@ -106,17 +106,17 @@
   roles:
     - role: longhorn
 
-- name: "Stage 6 — Envoy Gateway (ingress)"
+- name: "Stage 6 — Traefik (ingress)"
   hosts: k3s_master
   gather_facts: true
   run_once: true
   become: false
-  tags: [ingress, platform]
+  tags: [traefik, ingress, platform]
   pre_tasks:
     - name: Include picluster variables
       ansible.builtin.include_vars: "vars/picluster.yml"
   roles:
-    - role: ingress
+    - role: traefik
 
 - name: "Stage 7 — ArgoCD"
   import_playbook: install_argocd.yml

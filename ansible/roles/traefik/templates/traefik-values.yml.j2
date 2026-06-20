@@ -1,0 +1,46 @@
+---
+deployment:
+  replicas: 1
+
+service:
+  type: LoadBalancer
+
+ports:
+  web:
+    port: {{ traefik_web_port }}
+    redirectTo:
+      port: websecure
+  websecure:
+    port: {{ traefik_websecure_port }}
+    tls:
+      enabled: true
+
+logs:
+  general:
+    level: {{ traefik_log_level }}
+  access:
+    enabled: {{ traefik_access_logs | lower }}
+
+dashboard:
+  enabled: {{ traefik_dashboard_enabled | lower }}
+
+providers:
+  kubernetesIngress:
+    enabled: true
+  kubernetesCRD:
+    enabled: true
+
+certResolvers:
+  letsencrypt:
+    acme:
+      email: {{ acme_issuer_email | default('admin@example.com') }}
+      storage: /data/acme.json
+      tlsChallenge: {}
+
+persistence:
+  enabled: true
+  storageClass: longhorn
+  size: 1Gi
+
+additionalArguments:
+  - "--serversTransport.insecureSkipVerify=true"

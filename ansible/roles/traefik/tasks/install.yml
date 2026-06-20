@@ -1,0 +1,36 @@
+---
+
+- name: Add Traefik Helm repository
+  kubernetes.core.helm_repository:
+    name: traefik
+    repo_url: https://helm.traefik.io/traefik
+  become: false
+  delegate_to: localhost
+
+- name: Install Traefik via Helm
+  kubernetes.core.helm:
+    name: traefik
+    chart_ref: traefik/traefik
+    chart_version: "{{ traefik_chart_version }}"
+    release_namespace: "{{ traefik_namespace }}"
+    create_namespace: true
+    values: "{{ lookup('template', 'traefik-values.yml.j2') | from_yaml }}"
+    wait: true
+    timeout: "5m0s"
+  become: false
+  delegate_to: localhost
+  retries: 3
+  delay: 15
+
+- name: Wait for Traefik to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: traefik
+    namespace: "{{ traefik_namespace }}"
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 120
+  become: false
+  delegate_to: localhost

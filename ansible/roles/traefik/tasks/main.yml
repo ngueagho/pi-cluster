@@ -1,0 +1,8 @@
+---
+
+- name: Install Traefik
+  ansible.builtin.include_tasks: install.yml
+
+- name: Configure Traefik dashboard IngressRoute
+  ansible.builtin.include_tasks: configure.yml
+  when: traefik_dashboard_enabled

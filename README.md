@@ -115,9 +115,9 @@ The following picture shows the set of opensource solutions used so far in the c
         <td>Kubernetes API Load-balancer</td>
     </tr>
     <tr>
-        <td><img width="32" src="docs/assets/img/logos/envoy.svg"></td>
-        <td><a href="https://gateway.envoyproxy.io/">Envoy Gateway</a></td>
-        <td>Kubernetes Gateway API Controller</td>
+        <td><img width="32" src="docs/assets/img/logos/traefik.svg"></td>
+        <td><a href="https://traefik.io/traefik/">Traefik</a></td>
+        <td>Kubernetes Ingress Controller (installed via Ansible)</td>
     </tr> 
     <tr>
         <td><img width="32" src="docs/assets/img/logos/longhorn.svg"></td>

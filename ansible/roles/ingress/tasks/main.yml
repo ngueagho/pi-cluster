@@ -1,7 +1,0 @@
----
-
-- name: Install Envoy Gateway
-  ansible.builtin.include_tasks: install.yml
-
-- name: Create GatewayClass and Gateway
-  ansible.builtin.include_tasks: configure.yml
