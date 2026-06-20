@@ -1,0 +1,45 @@
+---
+global:
+  domain: {{ argocd_server_hostname }}
+
+configs:
+  params:
+    server.insecure: {{ argocd_server_insecure | lower }}
+  cm:
+    admin.enabled: "true"
+    url: "https://{{ argocd_server_hostname }}"
+{% if argocd_enable_sso %}
+    oidc.config: |
+      name: Keycloak
+      issuer: {{ keycloak_url }}/realms/{{ keycloak_realm }}
+      clientID: argocd
+      clientSecret: $oidc.keycloak.clientSecret
+      requestedScopes:
+        - openid
+        - profile
+        - email
+        - groups
+{% endif %}
+  rbac:
+    policy.default: role:readonly
+    policy.csv: |
+      {{ argocd_rbac_policy | indent(6) }}
+
+server:
+  replicas: 1
+  autoscaling:
+    enabled: false
+
+repoServer:
+  replicas: 1
+  autoscaling:
+    enabled: false
+
+applicationSet:
+  replicas: 1
+
+redis:
+  enabled: true
+
+controller:
+  replicas: 1

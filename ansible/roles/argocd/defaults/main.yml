@@ -1,0 +1,42 @@
+---
+
+# ArgoCD version (Helm chart)
+# renovate: datasource=helm depName=argo-cd registryUrl=https://argoproj.github.io/argo-helm
+argocd_chart_version: "7.8.26"
+
+# Namespace
+argocd_namespace: argocd
+
+# ArgoCD admin password (bcrypt hash)
+# Generate with: htpasswd -nbBC 10 "" <password> | tr -d ':\n' | sed 's/$2y/$2a/'
+# Default: "admin" — override in production via Vault
+argocd_admin_password_hash: ""
+
+# ArgoCD server hostname (used for ingress)
+argocd_server_hostname: "argocd.{{ cluster_domain | default('local') }}"
+
+# Enable insecure mode (disable TLS on argocd-server, TLS handled by ingress)
+argocd_server_insecure: true
+
+# ArgoCD CLI version
+# renovate: datasource=github-releases depName=argoproj/argo-cd
+argocd_cli_version: "v2.14.11"
+argocd_cli_bin_path: /usr/local/bin/argocd
+
+# Git repository to bootstrap (ApplicationSet source)
+argocd_bootstrap_repo_url: ""
+argocd_bootstrap_repo_branch: main
+argocd_bootstrap_app_path: "kubernetes/apps"
+
+# Enable SSO via Keycloak (requires keycloak_url and keycloak_realm)
+argocd_enable_sso: false
+keycloak_url: ""
+keycloak_realm: "master"
+
+# RBAC policy — admin group mapped to role:admin
+argocd_rbac_policy: |
+  g, argocd-admins, role:admin
+
+# Helm binary path
+helm_bin_path: /usr/local/bin/helm
+helm_version: v3.17.3

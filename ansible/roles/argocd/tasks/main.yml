@@ -1,0 +1,13 @@
+---
+
+- name: Install Helm if not present
+  ansible.builtin.include_tasks: ../../k3s/master/tasks/install_helm.yml
+
+- name: Install ArgoCD
+  ansible.builtin.include_tasks: install.yml
+
+- name: Install ArgoCD CLI
+  ansible.builtin.include_tasks: cli.yml
+
+- name: Configure ArgoCD
+  ansible.builtin.include_tasks: configure.yml

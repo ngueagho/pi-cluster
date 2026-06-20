@@ -1,0 +1,49 @@
+---
+
+- name: Apply ArgoCD RBAC configmap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-rbac-cm
+        namespace: "{{ argocd_namespace }}"
+        labels:
+          app.kubernetes.io/name: argocd-rbac-cm
+          app.kubernetes.io/part-of: argocd
+      data:
+        policy.default: role:readonly
+        policy.csv: "{{ argocd_rbac_policy }}"
+  become: false
+  delegate_to: localhost
+
+- name: Bootstrap root Application (App of Apps)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: bootstrap
+        namespace: "{{ argocd_namespace }}"
+        finalizers:
+          - resources-finalizer.argocd.argoproj.io
+      spec:
+        project: default
+        source:
+          repoURL: "{{ argocd_bootstrap_repo_url }}"
+          targetRevision: "{{ argocd_bootstrap_repo_branch }}"
+          path: "{{ argocd_bootstrap_app_path }}"
+        destination:
+          server: https://kubernetes.default.svc
+          namespace: "{{ argocd_namespace }}"
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+          syncOptions:
+            - CreateNamespace=true
+  become: false
+  delegate_to: localhost
+  when: argocd_bootstrap_repo_url | length > 0

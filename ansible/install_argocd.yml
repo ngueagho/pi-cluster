@@ -1,0 +1,62 @@
+---
+
+- name: Install and configure ArgoCD
+  hosts: k3s_master
+  gather_facts: true
+  run_once: true
+  become: false
+  vars:
+    vault_secret_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.secrets/vault.env"
+
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+
+    - name: Check Vault secret file exists
+      ansible.builtin.stat:
+        path: "{{ vault_secret_file }}"
+      register: vault_secret_file_stat
+      delegate_to: localhost
+
+    - name: Validate Vault secret file exists
+      ansible.builtin.assert:
+        that:
+          - vault_secret_file_stat.stat.exists
+        fail_msg: "Vault secret file not found: {{ vault_secret_file }}"
+      delegate_to: localhost
+
+    - name: Load Vault environment
+      ansible.builtin.set_fact:
+        vault_addr: "{{ lookup('ansible.builtin.ini', 'VAULT_ADDR type=properties file=' ~ vault_secret_file) }}"
+        vault_token: "{{ lookup('ansible.builtin.ini', 'VAULT_TOKEN type=properties file=' ~ vault_secret_file) }}"
+        vault_cacert: "{{ lookup('ansible.builtin.ini', 'VAULT_CACERT type=properties file=' ~ vault_secret_file, errors='ignore') | default('', true) }}"
+      delegate_to: localhost
+
+    - name: Fetch ArgoCD admin password hash from Vault
+      community.hashi_vault.vault_kv2_get:
+        url: "{{ vault_addr }}"
+        token: "{{ vault_token }}"
+        validate_certs: "{{ not (enable_letsencrypt | default(false)) }}"
+        ca_cert: "{{ vault_cacert | default(omit) }}"
+        mount_point: secret
+        path: cluster/argocd
+      register: argocd_vault_secret
+      delegate_to: localhost
+
+    - name: Set ArgoCD admin password hash from Vault
+      ansible.builtin.set_fact:
+        argocd_admin_password_hash: "{{ (argocd_vault_secret.secret | default({})).admin_password_hash | default('', true) }}"
+      no_log: true
+
+    - name: Validate ArgoCD admin password hash
+      ansible.builtin.assert:
+        that:
+          - argocd_admin_password_hash | length > 0
+        fail_msg: |
+          Failed to retrieve ArgoCD admin password hash from Vault at secret/cluster/argocd
+          Store it with:
+            vault kv put secret/cluster/argocd admin_password_hash='<bcrypt-hash>'
+          Generate hash: htpasswd -nbBC 10 "" <password> | tr -d ':\n' | sed 's/$2y/$2a/'
+
+  roles:
+    - role: argocd

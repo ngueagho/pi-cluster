@@ -1,0 +1,41 @@
+---
+
+- name: Set platform and architecture facts for ArgoCD CLI
+  ansible.builtin.set_fact:
+    k8s_platform: "{{ ansible_facts['system'] | lower }}"
+    k8s_arch: >-
+      {{
+        'amd64' if ansible_facts['architecture'] in ['x86_64', 'amd64'] else
+        'arm64' if ansible_facts['architecture'] in ['aarch64', 'arm64'] else
+        ansible_facts['architecture']
+      }}
+  delegate_to: localhost
+  become: false
+
+- name: Check if argocd CLI is already installed
+  ansible.builtin.stat:
+    path: "{{ argocd_cli_bin_path }}"
+  register: argocd_cli_stat
+  delegate_to: localhost
+  become: false
+
+- name: Get installed argocd CLI version
+  ansible.builtin.command: "{{ argocd_cli_bin_path }} version --client --short"
+  register: argocd_cli_existing_version
+  changed_when: false
+  failed_when: false
+  when: argocd_cli_stat.stat.exists
+  delegate_to: localhost
+  become: false
+
+- name: Download and install argocd CLI
+  ansible.builtin.get_url:
+    url: "https://github.com/argoproj/argo-cd/releases/download/{{ argocd_cli_version }}/argocd-{{ k8s_platform }}-{{ k8s_arch }}"
+    dest: "{{ argocd_cli_bin_path }}"
+    mode: "0755"
+  become: true
+  delegate_to: localhost
+  when: >
+    not argocd_cli_stat.stat.exists
+    or (argocd_cli_existing_version is defined
+        and argocd_cli_version not in (argocd_cli_existing_version.stdout | default('')))

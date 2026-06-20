@@ -65,19 +65,14 @@ The following picture shows the set of opensource solutions used so far in the c
         <td>Automate OS configuration, external services installation and k3s installation and bootstrapping</td>
     </tr>
     <tr>
-        <td><img width="32" src="docs/assets/img/logos/flux-cd.png" alt="fluxcd logo"></td>
-        <td><a href="https://fluxcd.io/">FluxCD</a></td>
-        <td>GitOps tool for deploying applications to Kubernetes</td>
+        <td><img width="32" src="docs/assets/img/logos/argocd.svg" alt="argocd logo"></td>
+        <td><a href="https://argo-cd.readthedocs.io/">ArgoCD</a></td>
+        <td>GitOps tool for deploying applications to Kubernetes (installed via Ansible)</td>
     </tr>
     <tr>
         <td><img width="32" src="docs/assets/img/logos/opentofu-icon.svg" alt="opentofu logo"></td>
         <td><a href="https://opentofu.org/">OpenTofu</a></td>
         <td>Automate the provisioning of external services (Vault, DNS, S3 buckets, etc) required for the cluster operation</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="docs/assets/img/logos/cloud-init.svg"></td>
-        <td><a href="https://cloudinit.readthedocs.io/en/latest/">Cloud-init</a></td>
-        <td>Automate OS initial installation</td>
     </tr>
     <tr>
         <td><img width="32" src="docs/assets/img/logos/ubuntu.svg"></td>
