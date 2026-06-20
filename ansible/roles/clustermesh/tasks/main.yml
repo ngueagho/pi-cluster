@@ -1,0 +1,14 @@
+---
+
+- name: Install Cilium CLI
+  ansible.builtin.include_tasks: cli.yml
+
+- name: Patch Cilium with cluster identity and Cluster Mesh settings
+  ansible.builtin.include_tasks: enable.yml
+
+- name: Connect clusters together
+  ansible.builtin.include_tasks: connect.yml
+  when: clustermesh_peers | length > 0
+
+- name: Verify Cluster Mesh status
+  ansible.builtin.include_tasks: verify.yml

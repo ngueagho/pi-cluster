@@ -1,0 +1,33 @@
+---
+
+# Connect this cluster to each peer defined in clustermesh_peers.
+# Idempotent: re-running skips already connected pairs.
+
+- name: Connect cluster to each peer
+  ansible.builtin.command: >
+    {{ cilium_cli_bin_path }} clustermesh connect
+    --context {{ cluster_name }}
+    --destination-context {{ item.context }}
+  delegate_to: localhost
+  become: false
+  loop: "{{ clustermesh_peers }}"
+  loop_control:
+    label: "{{ cluster_name }} -> {{ item.name }}"
+  register: connect_result
+  changed_when: "'connected' in connect_result.stdout"
+  failed_when:
+    - connect_result.rc != 0
+    - "'already connected' not in connect_result.stderr"
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dir }}/{{ cluster_name }}.yaml"
+
+- name: Wait for mesh connectivity with each peer
+  ansible.builtin.command: >
+    {{ cilium_cli_bin_path }} clustermesh status
+    --context {{ cluster_name }}
+    --wait
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dir }}/{{ cluster_name }}.yaml"

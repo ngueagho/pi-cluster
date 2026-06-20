@@ -97,7 +97,7 @@ The following picture shows the set of opensource solutions used so far in the c
     <tr>
         <td><img width="60" src="docs/assets/img/logos/cilium.svg" alt="cilium logo"></td>
         <td><a href="https://cilium.io">Cilium</a></td>
-        <td>Kubernetes Networking (CNI) and Load Balancer</td>
+        <td>Kubernetes Networking (CNI), Load Balancer and Cluster Mesh (multi-cluster)</td>
     </tr>
     <tr>
         <td><img width="32" src="docs/assets/img/logos/coredns.svg"></td>

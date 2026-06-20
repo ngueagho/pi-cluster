@@ -1,0 +1,25 @@
+---
+# Cluster identity — required for Cluster Mesh
+cluster:
+  name: {{ cluster_name }}
+  id: {{ cluster_id }}
+
+# Pod and service CIDRs — must not overlap across clusters
+ipam:
+  operator:
+    clusterPoolIPv4PodCIDRList: "{{ cluster_pod_cidr }}"
+
+# Enable Cluster Mesh API server
+clustermesh:
+  useAPIServer: true
+  apiserver:
+    replicas: 1
+    service:
+      type: {{ clustermesh_service_type }}
+    tls:
+      auto:
+        method: helm
+
+# Enable cross-cluster service discovery
+externalWorkloads:
+  enabled: false

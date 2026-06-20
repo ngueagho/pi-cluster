@@ -1,0 +1,44 @@
+---
+
+# Patch Cilium Helm release with cluster identity and Cluster Mesh API server.
+# This upgrades the existing Cilium install — does not reinstall it.
+
+- name: Patch Cilium with cluster identity and ClusterMesh values
+  kubernetes.core.helm:
+    name: cilium
+    chart_ref: cilium/cilium
+    release_namespace: kube-system
+    reuse_values: true
+    values: "{{ lookup('template', 'cilium-clustermesh-values.yml.j2') | from_yaml }}"
+    wait: true
+    timeout: "5m0s"
+  become: false
+  delegate_to: localhost
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dir }}/{{ cluster_name }}.yaml"
+
+- name: Enable Cluster Mesh API server
+  ansible.builtin.command: >
+    {{ cilium_cli_bin_path }} clustermesh enable
+    --service-type {{ clustermesh_service_type }}
+    --context {{ cluster_name }}
+  delegate_to: localhost
+  become: false
+  register: clustermesh_enable_result
+  changed_when: "'ClusterMesh enabled' in clustermesh_enable_result.stdout"
+  failed_when:
+    - clustermesh_enable_result.rc != 0
+    - "'already enabled' not in clustermesh_enable_result.stderr"
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dir }}/{{ cluster_name }}.yaml"
+
+- name: Wait for Cluster Mesh API server to be ready
+  ansible.builtin.command: >
+    {{ cilium_cli_bin_path }} clustermesh status
+    --context {{ cluster_name }}
+    --wait
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dir }}/{{ cluster_name }}.yaml"

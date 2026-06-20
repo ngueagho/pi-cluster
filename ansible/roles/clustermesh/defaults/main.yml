@@ -1,0 +1,33 @@
+---
+
+# Cluster identity — must be unique across all clusters (1-255)
+# Set per cluster in host_vars or group_vars
+cluster_id: 1
+cluster_name: "cluster1"
+
+# Pod CIDR — must NOT overlap between clusters
+# cluster1: 10.42.0.0/16
+# cluster2: 10.43.0.0/16
+# cluster3: 10.44.0.0/16
+cluster_pod_cidr: "10.42.0.0/16"
+
+# Service CIDR — must NOT overlap between clusters
+# cluster1: 10.96.0.0/12
+# cluster2: 10.112.0.0/12
+cluster_service_cidr: "10.96.0.0/12"
+
+# Cluster Mesh service type: LoadBalancer, NodePort, ClusterIP
+clustermesh_service_type: LoadBalancer
+
+# List of peer clusters to connect to
+# Each entry: { name: "cluster2", context: "cluster2-context" }
+clustermesh_peers: []
+
+# Cilium CLI version
+# renovate: datasource=github-releases depName=cilium/cilium-cli
+cilium_cli_version: "v0.18.5"
+cilium_cli_bin_path: /usr/local/bin/cilium
+
+# kubeconfig path per cluster context
+# Override per cluster: { cluster1: "~/.kube/cluster1.yaml", cluster2: "~/.kube/cluster2.yaml" }
+kubeconfig_dir: "{{ lookup('env', 'HOME') }}/.kube"

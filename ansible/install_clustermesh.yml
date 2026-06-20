@@ -1,0 +1,62 @@
+---
+# Multi-cluster setup using Cilium Cluster Mesh.
+#
+# Prerequisites:
+#   - Cilium installed on each cluster (install_k3s.yml done)
+#   - Each cluster has a kubeconfig at ~/.kube/<cluster_name>.yaml
+#   - Pod CIDRs and Service CIDRs do NOT overlap between clusters
+#   - Nodes have L3 connectivity across clusters (or use tunnel mode)
+#
+# Run:
+#   ansible-playbook install_clustermesh.yml -i inventory_multicluster.yml
+#
+# To connect only (skip enable):
+#   ansible-playbook install_clustermesh.yml --tags connect
+
+- name: Enable Cluster Mesh on each cluster
+  hosts: k3s_master
+  gather_facts: true
+  run_once: true
+  become: false
+  tags: [enable]
+
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+
+    - name: Validate cluster_id is set and unique
+      ansible.builtin.assert:
+        that:
+          - cluster_id is defined
+          - cluster_id | int >= 1
+          - cluster_id | int <= 255
+          - cluster_name is defined
+          - cluster_name | length > 0
+        fail_msg: |
+          cluster_id (1-255) and cluster_name must be defined per cluster.
+          Set them in group_vars or host_vars for each cluster group.
+
+  roles:
+    - role: clustermesh
+
+- name: Collect kubeconfigs from all masters
+  hosts: k3s_master
+  gather_facts: false
+  tags: [kubeconfig]
+  tasks:
+    - name: Fetch kubeconfig from master
+      ansible.builtin.slurp:
+        src: /etc/rancher/k3s/k3s.yaml
+      register: kubeconfig_b64
+      become: true
+
+    - name: Write kubeconfig locally
+      ansible.builtin.copy:
+        content: >-
+          {{ kubeconfig_b64.content | b64decode
+             | replace('127.0.0.1', hostvars[inventory_hostname]['ansible_host'])
+             | replace('default', cluster_name) }}
+        dest: "{{ lookup('env', 'HOME') }}/.kube/{{ cluster_name }}.yaml"
+        mode: "0600"
+      delegate_to: localhost
+      become: false

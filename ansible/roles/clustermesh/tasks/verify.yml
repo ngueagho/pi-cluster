@@ -1,0 +1,31 @@
+---
+
+- name: Show Cluster Mesh status
+  ansible.builtin.command: >
+    {{ cilium_cli_bin_path }} clustermesh status
+    --context {{ cluster_name }}
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  register: mesh_status
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dir }}/{{ cluster_name }}.yaml"
+
+- name: Print Cluster Mesh status
+  ansible.builtin.debug:
+    msg: "{{ mesh_status.stdout_lines }}"
+
+- name: Run Cluster Mesh connectivity test
+  ansible.builtin.command: >
+    {{ cilium_cli_bin_path }} connectivity test
+    --context {{ cluster_name }}
+    --multi-cluster {{ item.context }}
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  loop: "{{ clustermesh_peers }}"
+  loop_control:
+    label: "connectivity test: {{ cluster_name }} <-> {{ item.name }}"
+  when: clustermesh_peers | length > 0
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dir }}/{{ cluster_name }}.yaml"

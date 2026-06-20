@@ -1,0 +1,56 @@
+---
+# Multi-cluster inventory example.
+# Each cluster group maps to one k3s master node.
+# Adjust IPs, cluster_id, cluster_name, and CIDRs per your environment.
+#
+# Rules:
+#   - cluster_id must be unique (1-255) across all clusters
+#   - cluster_pod_cidr must NOT overlap across clusters
+#   - cluster_service_cidr must NOT overlap across clusters
+
+all:
+  children:
+
+    # ── Cluster 1 ────────────────────────────────────────────────────────────
+    cluster1:
+      vars:
+        cluster_name: cluster1
+        cluster_id: 1
+        cluster_pod_cidr: "10.42.0.0/16"
+        cluster_service_cidr: "10.96.0.0/12"
+        clustermesh_peers:
+          - name: cluster2
+            context: cluster2
+      children:
+        k3s_master:
+          hosts:
+            node2:
+              ansible_host: 10.0.0.12
+        k3s_worker:
+          hosts:
+            node5:
+              ansible_host: 10.0.0.15
+            node6:
+              ansible_host: 10.0.0.16
+
+    # ── Cluster 2 ────────────────────────────────────────────────────────────
+    cluster2:
+      vars:
+        cluster_name: cluster2
+        cluster_id: 2
+        cluster_pod_cidr: "10.43.0.0/16"
+        cluster_service_cidr: "10.112.0.0/12"
+        clustermesh_peers:
+          - name: cluster1
+            context: cluster1
+      children:
+        k3s_master:
+          hosts:
+            node-hp-1:
+              ansible_host: 10.0.0.20
+        k3s_worker:
+          hosts:
+            node-hp-2:
+              ansible_host: 10.0.0.21
+            node-hp-3:
+              ansible_host: 10.0.0.22
