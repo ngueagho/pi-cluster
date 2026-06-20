@@ -1,0 +1,19 @@
+---
+
+# renovate: datasource=helm depName=longhorn registryUrl=https://charts.longhorn.io
+longhorn_chart_version: "1.12.0"
+longhorn_namespace: longhorn-system
+
+# Default storage path on each node
+longhorn_data_path: /storage
+
+# Number of replicas for volumes
+longhorn_default_replicas: 3
+
+# Backup target (S3/MinIO) — set to "" to disable backups
+longhorn_backup_target: ""
+longhorn_backup_credential_secret: ""
+
+# Storage class name
+longhorn_storage_class_name: longhorn
+longhorn_storage_class_default: true

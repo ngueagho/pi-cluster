@@ -1,0 +1,98 @@
+---
+# Add one or more master (control-plane) nodes to an existing HA cluster.
+#
+# Usage:
+#   ansible-playbook add_master.yml --limit node-hp-4
+#
+# Prerequisites:
+#   - At least one master is already running (the primary master)
+#   - Vault has the k3s token at secret/cluster/k3s
+#   - k3s_api_vip is set in vars/picluster.yml (kube-vip VIP)
+#   - New master node is defined in inventory.yml under k3s_master group
+#
+# The new master joins as a secondary (not --cluster-init).
+# ETCD members are added one at a time (throttle: 1) to avoid learner overflow.
+
+- name: Prepare new master node (OS setup)
+  hosts: "{{ target_nodes | default('k3s_master') }}"
+  gather_facts: true
+  become: true
+  tags: [os]
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+    - name: Skip primary master — only configure new nodes
+      ansible.builtin.meta: end_host
+      when: inventory_hostname == groups['k3s_master'][0]
+  roles:
+    - role: basic_setup
+    - role: k3s/prereq
+
+- name: Install k3s on new master nodes
+  hosts: "{{ target_nodes | default('k3s_master') }}"
+  gather_facts: true
+  become: true
+  serial: 1
+  tags: [k3s]
+  vars:
+    vault_secret_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.secrets/vault.env"
+    k3s_primary_control_node: false
+    k3s_build_cluster: true
+  pre_tasks:
+    - name: Skip primary master — only install on new nodes
+      ansible.builtin.meta: end_host
+      when: inventory_hostname == groups['k3s_master'][0]
+
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+
+    - name: Load Vault environment
+      ansible.builtin.set_fact:
+        vault_addr: "{{ lookup('ansible.builtin.ini', 'VAULT_ADDR type=properties file=' ~ vault_secret_file) }}"
+        vault_token: "{{ lookup('ansible.builtin.ini', 'VAULT_TOKEN type=properties file=' ~ vault_secret_file) }}"
+        vault_cacert: "{{ lookup('ansible.builtin.ini', 'VAULT_CACERT type=properties file=' ~ vault_secret_file, errors='ignore') | default('', true) }}"
+      delegate_to: localhost
+      become: false
+
+    - name: Fetch k3s token from Vault
+      community.hashi_vault.vault_kv2_get:
+        url: "{{ vault_addr }}"
+        token: "{{ vault_token }}"
+        validate_certs: "{{ not (enable_letsencrypt | default(false)) }}"
+        ca_cert: "{{ vault_cacert | default(omit) }}"
+        mount_point: secret
+        path: cluster/k3s
+      register: k3s_vault_secret
+      delegate_to: localhost
+      become: false
+
+    - name: Set k3s token
+      ansible.builtin.set_fact:
+        k3s_token: "{{ (k3s_vault_secret.secret | default({})).token | default('') }}"
+      no_log: true
+
+    - name: Validate k3s token
+      ansible.builtin.assert:
+        that:
+          - k3s_token | length > 0
+        fail_msg: "k3s token not found in Vault at secret/cluster/k3s"
+
+  roles:
+    - role: k3s/master
+
+- name: Verify new master joined the cluster
+  hosts: k3s_master
+  gather_facts: false
+  run_once: true
+  become: false
+  tags: [verify]
+  tasks:
+    - name: List all cluster nodes
+      ansible.builtin.command: kubectl get nodes -o wide
+      changed_when: false
+      register: nodes_output
+      delegate_to: localhost
+
+    - name: Show cluster nodes
+      ansible.builtin.debug:
+        msg: "{{ nodes_output.stdout_lines }}"

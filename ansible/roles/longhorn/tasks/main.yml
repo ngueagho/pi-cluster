@@ -1,0 +1,7 @@
+---
+
+- name: Install Longhorn prerequisites on all nodes
+  ansible.builtin.include_tasks: prereq.yml
+
+- name: Install Longhorn
+  ansible.builtin.include_tasks: install.yml

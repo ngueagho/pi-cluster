@@ -1,0 +1,25 @@
+---
+
+- name: Install Longhorn dependencies on nodes
+  ansible.builtin.apt:
+    name:
+      - open-iscsi
+      - nfs-common
+      - util-linux
+    update_cache: true
+    state: present
+  become: true
+
+- name: Enable and start iscsid
+  ansible.builtin.systemd:
+    name: iscsid
+    enabled: true
+    state: started
+  become: true
+
+- name: Create Longhorn data directory
+  ansible.builtin.file:
+    path: "{{ longhorn_data_path }}"
+    state: directory
+    mode: "0755"
+  become: true

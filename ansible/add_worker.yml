@@ -1,0 +1,95 @@
+---
+# Add one or more worker nodes to an existing cluster.
+#
+# Usage:
+#   ansible-playbook add_worker.yml --limit node7,node8
+#
+# Prerequisites:
+#   - The k3s cluster is already running
+#   - Vault is running and has the k3s token at secret/cluster/k3s
+#   - New nodes are reachable via SSH and defined in inventory.yml
+
+- name: Prepare new worker nodes (OS setup)
+  hosts: "{{ target_nodes | default('k3s_worker') }}"
+  gather_facts: true
+  become: true
+  tags: [os]
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+  roles:
+    - role: basic_setup
+    - role: k3s/prereq
+
+- name: Install k3s agent on new workers
+  hosts: "{{ target_nodes | default('k3s_worker') }}"
+  gather_facts: true
+  become: true
+  tags: [k3s]
+  vars:
+    vault_secret_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.secrets/vault.env"
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+
+    - name: Load Vault environment
+      ansible.builtin.set_fact:
+        vault_addr: "{{ lookup('ansible.builtin.ini', 'VAULT_ADDR type=properties file=' ~ vault_secret_file) }}"
+        vault_token: "{{ lookup('ansible.builtin.ini', 'VAULT_TOKEN type=properties file=' ~ vault_secret_file) }}"
+        vault_cacert: "{{ lookup('ansible.builtin.ini', 'VAULT_CACERT type=properties file=' ~ vault_secret_file, errors='ignore') | default('', true) }}"
+      delegate_to: localhost
+      become: false
+
+    - name: Fetch k3s token from Vault
+      community.hashi_vault.vault_kv2_get:
+        url: "{{ vault_addr }}"
+        token: "{{ vault_token }}"
+        validate_certs: "{{ not (enable_letsencrypt | default(false)) }}"
+        ca_cert: "{{ vault_cacert | default(omit) }}"
+        mount_point: secret
+        path: cluster/k3s
+      register: k3s_vault_secret
+      delegate_to: localhost
+      become: false
+
+    - name: Set k3s token
+      ansible.builtin.set_fact:
+        k3s_token: "{{ (k3s_vault_secret.secret | default({})).token | default('') }}"
+      no_log: true
+
+    - name: Validate k3s token
+      ansible.builtin.assert:
+        that:
+          - k3s_token | length > 0
+        fail_msg: "k3s token not found in Vault at secret/cluster/k3s"
+
+  roles:
+    - role: k3s/worker
+
+- name: Label new worker nodes
+  hosts: k3s_master
+  gather_facts: false
+  run_once: true
+  become: false
+  tags: [label]
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+  tasks:
+    - name: Label new worker nodes
+      ansible.builtin.command:
+        cmd: "kubectl label nodes {{ item }} kubernetes.io/role=worker --overwrite"
+      loop: "{{ groups[target_nodes | default('k3s_worker')] }}"
+      changed_when: true
+
+- name: Install Longhorn prerequisites on new workers
+  hosts: "{{ target_nodes | default('k3s_worker') }}"
+  gather_facts: true
+  become: true
+  tags: [longhorn]
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+  tasks:
+    - name: Include Longhorn prereq tasks
+      ansible.builtin.include_tasks: roles/longhorn/tasks/prereq.yml

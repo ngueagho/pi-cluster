@@ -1,0 +1,83 @@
+---
+
+- name: Create monitoring namespace
+  kubernetes.core.k8s:
+    name: "{{ monitoring_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+  become: false
+  delegate_to: localhost
+
+- name: Create Grafana admin secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-admin-credentials
+        namespace: "{{ monitoring_namespace }}"
+      stringData:
+        admin-user: admin
+        admin-password: "{{ grafana_admin_password }}"
+  become: false
+  delegate_to: localhost
+  no_log: true
+  when: grafana_admin_password | length > 0
+
+- name: Install kube-prometheus-stack via Helm
+  kubernetes.core.helm:
+    name: kube-prometheus-stack
+    chart_ref: "oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack"
+    chart_version: "{{ monitoring_stack_chart_version }}"
+    release_namespace: "{{ monitoring_namespace }}"
+    create_namespace: true
+    values:
+      crds:
+        enabled: false
+      prometheus:
+        prometheusSpec:
+          retention: "{{ prometheus_retention }}"
+          storageSpec:
+            volumeClaimTemplate:
+              spec:
+                storageClassName: "{{ prometheus_storage_class }}"
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: "{{ prometheus_storage_size }}"
+      alertmanager:
+        enabled: "{{ alertmanager_enabled }}"
+        alertmanagerSpec:
+          storage:
+            volumeClaimTemplate:
+              spec:
+                storageClassName: "{{ prometheus_storage_class }}"
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: "{{ alertmanager_storage_size }}"
+      grafana:
+        enabled: true
+        adminPassword: "{{ grafana_admin_password }}"
+        ingress:
+          enabled: false
+    wait: true
+    timeout: "10m0s"
+  become: false
+  delegate_to: localhost
+  retries: 3
+  delay: 15
+
+- name: Wait for Prometheus to be ready
+  kubernetes.core.k8s_info:
+    kind: StatefulSet
+    name: prometheus-kube-prometheus-stack-prometheus
+    namespace: "{{ monitoring_namespace }}"
+    wait: true
+    wait_condition:
+      type: Available
+    wait_timeout: 300
+  become: false
+  delegate_to: localhost

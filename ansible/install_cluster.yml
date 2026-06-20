@@ -1,0 +1,161 @@
+---
+# Full production Kubernetes cluster installation.
+#
+# Stages (all idempotent — safe to re-run):
+#   1. OS preparation    → basic_setup + prereq
+#   2. k3s cluster       → primary master, HA masters, workers
+#   3. Cilium CNI        → already handled inside k3s/master role
+#   4. cert-manager      → TLS certificate management
+#   5. Longhorn          → distributed block storage
+#   6. Ingress           → Envoy Gateway
+#   7. ArgoCD            → GitOps
+#   8. Monitoring        → kube-prometheus-stack + Grafana
+#
+# Run full install:
+#   ansible-playbook install_cluster.yml
+#
+# Run specific stage:
+#   ansible-playbook install_cluster.yml --tags cert-manager
+#   ansible-playbook install_cluster.yml --tags monitoring
+
+- name: "Stage 1 — OS preparation"
+  hosts: picluster
+  gather_facts: true
+  become: true
+  tags: [os, always]
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+  roles:
+    - role: basic_setup
+    - role: k3s/prereq
+
+- name: "Stage 2 — Install k3s cluster (masters + workers)"
+  import_playbook: k3s_install.yml
+  tags: [k3s]
+
+- name: "Stage 3 — Fetch kubeconfig"
+  hosts: k3s_master
+  gather_facts: false
+  run_once: true
+  become: true
+  tags: [kubeconfig, k3s]
+  tasks:
+    - name: Fetch kubeconfig from primary master
+      ansible.builtin.slurp:
+        src: /etc/rancher/k3s/k3s.yaml
+      register: kubeconfig_b64
+
+    - name: Write kubeconfig locally
+      ansible.builtin.copy:
+        content: "{{ kubeconfig_b64.content | b64decode | replace('127.0.0.1', k3s_api_vip) }}"
+        dest: "{{ lookup('env', 'HOME') }}/.kube/config"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+
+- name: "Stage 4 — cert-manager"
+  hosts: k3s_master
+  gather_facts: true
+  run_once: true
+  become: false
+  tags: [cert-manager, platform]
+  vars:
+    vault_secret_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.secrets/vault.env"
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+
+    - name: Load Vault environment
+      ansible.builtin.set_fact:
+        vault_addr: "{{ lookup('ansible.builtin.ini', 'VAULT_ADDR type=properties file=' ~ vault_secret_file) }}"
+        vault_token: "{{ lookup('ansible.builtin.ini', 'VAULT_TOKEN type=properties file=' ~ vault_secret_file) }}"
+        vault_cacert: "{{ lookup('ansible.builtin.ini', 'VAULT_CACERT type=properties file=' ~ vault_secret_file, errors='ignore') | default('', true) }}"
+      delegate_to: localhost
+
+    - name: Fetch IONOS credentials from Vault
+      community.hashi_vault.vault_kv2_get:
+        url: "{{ vault_addr }}"
+        token: "{{ vault_token }}"
+        validate_certs: "{{ not (enable_letsencrypt | default(false)) }}"
+        ca_cert: "{{ vault_cacert | default(omit) }}"
+        mount_point: secret
+        path: cluster/ionos
+      register: ionos_vault_secret
+      delegate_to: localhost
+      when: enable_letsencrypt | default(false)
+
+    - name: Set IONOS credentials
+      ansible.builtin.set_fact:
+        ionos_public_prefix: "{{ (ionos_vault_secret.secret | default({})).public_prefix | default('') }}"
+        ionos_secret: "{{ (ionos_vault_secret.secret | default({})).secret | default('') }}"
+      no_log: true
+      when: enable_letsencrypt | default(false)
+
+  roles:
+    - role: cert-manager
+
+- name: "Stage 5 — Longhorn distributed storage"
+  hosts: picluster
+  gather_facts: true
+  become: true
+  tags: [longhorn, platform]
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+  roles:
+    - role: longhorn
+
+- name: "Stage 6 — Envoy Gateway (ingress)"
+  hosts: k3s_master
+  gather_facts: true
+  run_once: true
+  become: false
+  tags: [ingress, platform]
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+  roles:
+    - role: ingress
+
+- name: "Stage 7 — ArgoCD"
+  import_playbook: install_argocd.yml
+  tags: [argocd, gitops]
+
+- name: "Stage 8 — Monitoring (kube-prometheus-stack)"
+  hosts: k3s_master
+  gather_facts: true
+  run_once: true
+  become: false
+  tags: [monitoring, platform]
+  vars:
+    vault_secret_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.secrets/vault.env"
+  pre_tasks:
+    - name: Include picluster variables
+      ansible.builtin.include_vars: "vars/picluster.yml"
+
+    - name: Load Vault environment
+      ansible.builtin.set_fact:
+        vault_addr: "{{ lookup('ansible.builtin.ini', 'VAULT_ADDR type=properties file=' ~ vault_secret_file) }}"
+        vault_token: "{{ lookup('ansible.builtin.ini', 'VAULT_TOKEN type=properties file=' ~ vault_secret_file) }}"
+        vault_cacert: "{{ lookup('ansible.builtin.ini', 'VAULT_CACERT type=properties file=' ~ vault_secret_file, errors='ignore') | default('', true) }}"
+      delegate_to: localhost
+
+    - name: Fetch Grafana admin password from Vault
+      community.hashi_vault.vault_kv2_get:
+        url: "{{ vault_addr }}"
+        token: "{{ vault_token }}"
+        validate_certs: "{{ not (enable_letsencrypt | default(false)) }}"
+        ca_cert: "{{ vault_cacert | default(omit) }}"
+        mount_point: secret
+        path: cluster/grafana
+      register: grafana_vault_secret
+      delegate_to: localhost
+
+    - name: Set Grafana admin password
+      ansible.builtin.set_fact:
+        grafana_admin_password: "{{ (grafana_vault_secret.secret | default({})).admin_password | default('') }}"
+      no_log: true
+
+  roles:
+    - role: monitoring

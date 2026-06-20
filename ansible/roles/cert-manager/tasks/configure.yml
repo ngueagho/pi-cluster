@@ -1,0 +1,40 @@
+---
+
+- name: Create IONOS DNS credentials secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ionos-credentials
+        namespace: "{{ cert_manager_namespace }}"
+      stringData:
+        IONOS_PUBLIC_PREFIX: "{{ ionos_public_prefix }}"
+        IONOS_SECRET: "{{ ionos_secret }}"
+  become: false
+  delegate_to: localhost
+  no_log: true
+  when: cert_manager_issuer_type == 'letsencrypt'
+
+- name: Apply ClusterIssuer (Let's Encrypt production)
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'clusterissuer-letsencrypt.yml.j2') | from_yaml }}"
+  become: false
+  delegate_to: localhost
+  when: cert_manager_issuer_type == 'letsencrypt' and enable_letsencrypt
+
+- name: Apply ClusterIssuer (self-signed)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: selfsigned-issuer
+      spec:
+        selfSigned: {}
+  become: false
+  delegate_to: localhost
+  when: cert_manager_issuer_type == 'selfsigned' or not enable_letsencrypt

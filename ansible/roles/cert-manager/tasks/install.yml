@@ -1,0 +1,34 @@
+---
+
+- name: Install cert-manager via Helm
+  kubernetes.core.helm:
+    name: cert-manager
+    chart_ref: "oci://quay.io/jetstack/charts/cert-manager"
+    chart_version: "{{ cert_manager_chart_version }}"
+    release_namespace: "{{ cert_manager_namespace }}"
+    create_namespace: true
+    values:
+      crds:
+        enabled: true
+      global:
+        leaderElection:
+          namespace: "{{ cert_manager_namespace }}"
+    wait: true
+    timeout: "5m0s"
+  become: false
+  delegate_to: localhost
+  retries: 3
+  delay: 15
+
+- name: Wait for cert-manager webhook to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: cert-manager-webhook
+    namespace: "{{ cert_manager_namespace }}"
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 120
+  become: false
+  delegate_to: localhost

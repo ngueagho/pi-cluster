@@ -1,0 +1,4 @@
+---
+
+- name: Install kube-prometheus-stack
+  ansible.builtin.include_tasks: install.yml

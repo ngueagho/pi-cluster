@@ -1,0 +1,18 @@
+---
+
+# renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
+cert_manager_chart_version: "v1.20.2"
+cert_manager_namespace: cert-manager
+
+# ClusterIssuer: letsencrypt or selfsigned
+cert_manager_issuer_type: letsencrypt
+
+# Let's Encrypt
+acme_issuer_email: "admin@example.com"
+acme_server: "https://acme-v02.api.letsencrypt.org/directory"
+acme_staging_server: "https://acme-staging-v02.api.letsencrypt.org/directory"
+enable_letsencrypt: true
+
+# DNS01 challenge provider (ionos)
+ionos_api_endpoint: "https://api.hosting.ionos.com"
+# ionos_public_prefix and ionos_secret fetched from Vault at secret/cluster/ionos

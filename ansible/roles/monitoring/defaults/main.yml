@@ -1,0 +1,20 @@
+---
+
+# renovate: datasource=docker depName=ghcr.io/prometheus-community/charts/kube-prometheus-stack
+monitoring_stack_chart_version: "86.3.1"
+monitoring_namespace: kube-prom-stack
+
+# Grafana admin password — fetched from Vault at secret/cluster/grafana
+grafana_admin_password: ""
+
+# Grafana hostname
+grafana_hostname: "grafana.{{ cluster_domain | default('homelab.local') }}"
+
+# Retention
+prometheus_retention: 30d
+prometheus_storage_size: 50Gi
+prometheus_storage_class: longhorn
+
+# Alertmanager
+alertmanager_enabled: true
+alertmanager_storage_size: 5Gi

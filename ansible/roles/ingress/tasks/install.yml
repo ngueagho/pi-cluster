@@ -1,0 +1,36 @@
+---
+
+- name: Install Envoy Gateway via Helm
+  kubernetes.core.helm:
+    name: envoy-gateway
+    chart_ref: "oci://docker.io/envoyproxy/gateway-helm"
+    chart_version: "{{ envoy_gateway_chart_version }}"
+    release_namespace: "{{ envoy_gateway_namespace }}"
+    create_namespace: true
+    values:
+      config:
+        envoyGateway:
+          provider:
+            type: Kubernetes
+            kubernetes:
+              deploy:
+                type: GatewayNamespace
+    wait: true
+    timeout: "5m0s"
+  become: false
+  delegate_to: localhost
+  retries: 3
+  delay: 15
+
+- name: Wait for Envoy Gateway controller to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: envoy-gateway
+    namespace: "{{ envoy_gateway_namespace }}"
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 120
+  become: false
+  delegate_to: localhost
