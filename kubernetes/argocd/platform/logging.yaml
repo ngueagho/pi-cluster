@@ -4,8 +4,6 @@ kind: Application
 metadata:
   name: loki
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: platform
   sources:
@@ -33,8 +31,6 @@ kind: Application
 metadata:
   name: tempo
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: platform
   sources:
@@ -62,8 +58,6 @@ kind: Application
 metadata:
   name: fluent-bit
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: platform
   sources:
@@ -91,8 +85,6 @@ kind: Application
 metadata:
   name: fluentd
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: platform
   sources:

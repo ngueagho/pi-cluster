@@ -4,8 +4,6 @@ kind: Application
 metadata:
   name: kube-prometheus-stack
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: platform
   sources:
@@ -35,8 +33,6 @@ kind: Application
 metadata:
   name: grafana-operator
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: platform
   sources:

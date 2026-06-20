@@ -4,8 +4,6 @@ kind: Application
 metadata:
   name: eck-operator
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: platform
   sources:
@@ -31,8 +29,6 @@ kind: Application
 metadata:
   name: prometheus-elasticsearch-exporter
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: platform
   sources:

@@ -4,8 +4,6 @@ kind: Application
 metadata:
   name: cert-manager
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: platform
   sources:
@@ -34,8 +32,6 @@ kind: Application
 metadata:
   name: cert-manager-webhook-ionos
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: platform
   sources:
